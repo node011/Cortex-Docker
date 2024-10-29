@@ -1,0 +1,51 @@
+version: "3.7"
+
+services:
+  
+  elasticsearch:
+    container_name: elasticsearch
+    image: elasticsearch:latest
+    environment:
+      - http.host=0.0.0.0
+      - discovery.type=single-node
+      - cluster.name=hive
+      - script.allowed_types= inline
+      - thread_pool.search.queue_size=100000
+      - thread_pool.write.queue_size=10000
+      - gateway.recover_after_nodes=1
+      - xpack.security.enabled=false
+      - bootstrap.memory_lock=true
+      - ES_JAVA_OPTS=-Xms256m -Xmx256m
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    volumes:
+      - ./elasticsearch/data:/usr/share/elasticsearch/data
+      - ./elasticsearch/logs:/usr/share/elasticsearch/logs
+    networks:
+      - Hive
+  
+  cortex:
+    container_name: cortex
+    image: thehiveproject/cortex:latest
+    depends_on:
+      - elasticsearch
+    environment:
+      - 'JOB_DIRECTORY=/opt/cortex/jobs'
+    ports:
+      - '0.0.0.0:9001:9001'
+    volumes:
+      - ./cortex/application.conf:/etc/cortex/application.conf
+      - '/var/run/docker.sock:/var/run/docker.sock'
+      - ./cortex/log/:/var/log/cortex
+      - /tmp:/tmp
+      #- ./cortex/Cortex-Analyzers:/opt/cortex/analyzers
+      #- .cortex/Cortex-Analyzers/analyzers.json:/opt/cortex/analyzers/analyzers.json
+    privileged: true
+    networks:
+      - Hive
+  
+networks:
+    Hive:
+        driver: bridge
